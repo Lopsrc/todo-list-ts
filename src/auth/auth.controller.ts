@@ -5,7 +5,10 @@ import { AuthService } from './auth.service';
 import { AuthDto } from './dto/auth.dto';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Tokens } from './models/tokens.models'
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
 
@@ -13,6 +16,8 @@ export class AuthController {
         private authService: AuthService
     ){}
     
+    @ApiOperation({summary: 'sign up'})
+    @ApiResponse({status: HttpStatus.OK, type: Tokens})
     @UsePipes(ValidationPipe)
     @Post('/signup')
     async signup(@Body() user: CreateUserDTO, @Res() res: Response) {
@@ -21,6 +26,8 @@ export class AuthController {
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 
+    @ApiOperation({summary: 'sign in'})
+    @ApiResponse({status: HttpStatus.OK, type: Tokens})
     @UsePipes(ValidationPipe)
     @Post('/signin')
     async signin(@Body() authDto: AuthDto, @Res() res: Response) {
@@ -29,15 +36,19 @@ export class AuthController {
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 
+    @ApiOperation({summary: 'log out'})
+    @ApiResponse({status: HttpStatus.OK, type: 'true'})
     @UseGuards(AccessTokenGuard)
     @UsePipes(ValidationPipe)
     @Post("/logout")
     async logout(@Req() req: Request, @Res() res: Response) {
         this.authService.logOut(req.user['sub'])
-        .then(result => res.status(HttpStatus.OK).send({data: result}))
+        .then(result => res.status(HttpStatus.OK).send({data: true}))
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 
+    @ApiOperation({summary: 'refresh'})
+    @ApiResponse({status: HttpStatus.OK, type: Tokens})
     @UseGuards(RefreshTokenGuard)
     @UsePipes(ValidationPipe)
     @Post("/refresh")

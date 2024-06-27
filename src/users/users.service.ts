@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException, ForbiddenException, InternalServerErrorException, HttpStatus, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { User } from './model/user.model';
 import { RecoverUserDTO } from './dto/recoverUser.dto';
@@ -7,105 +7,167 @@ import { SessionDTO } from 'src/auth/dto/session.dto';
 
 @Injectable()
 export class UsersService {
-
+    logger: Logger;
     constructor (
         private prisma: PrismaService
-    ){}
+    ){
+        this.logger = new Logger(UsersService.name);
+    }
 
     async createUser(user: User){
-        return await this.prisma.users.create({data:user})
+        try {
+            return await this.prisma.users.create({data:user})
+        } catch (error) {
+            if( error.code === '23505'){
+                throw new BadRequestException('todo is already exist');
+            }
+            
+            throw error;
+        }
     }
 
     async getAllUsers(id: number){
-        const findUser = await this.getUserById(id)
-        if (!findUser || findUser.del){
-            throw new BadRequestException('users are not found');
-        } else if (!findUser.refresh_token_hash){
-            throw new UnauthorizedException('user is not authorized');
-        } else if (findUser.role !== 'ADMIN'){
-            throw new ForbiddenException('access is denied');
+        try {
+            this.logger.log('Get all users');
+            const findUser = await this.getUserById(id)
+            if (findUser.role !== 'ADMIN'){
+                throw new ForbiddenException('access is denied');
+            }
+            this.logger.debug(`User with email: ${findUser.email} and role: ${findUser.role}`);
+            const users = await this.prisma.users.findMany();
+            if (users.length === 0){
+                throw new BadRequestException('users are not found');
+            }
+            return users;
+        } catch (error) {
+            this.logger.error(error.message);
+            if (
+                error.status === HttpStatus.BAD_REQUEST  || 
+                error.status === HttpStatus.UNAUTHORIZED ||
+                error.status === HttpStatus.FORBIDDEN
+            ){
+                throw error;
+            }
+            throw new InternalServerErrorException('server error');
         }
-        const users = await this.prisma.users.findMany();
-        if (users.length === 0){
-            throw new BadRequestException('users are not found');
-        }
-        return users;
     }
 
-    async getUserByEmail(email: string) {
-        const user = await this.prisma.users.findUnique({ where: { email } });
-        return user;
+    async getUserByEmail(email: string) { 
+        try{
+            const user = await this.prisma.users.findUnique({ where: { email } });
+            return user;
+        } catch (error) {
+            throw error;
+        }
     }
 
     async getUserById(id: number) {
-        const user = await this.prisma.users.findUnique({ where: { id } });
-        if (!user || user.del){
-            throw new BadRequestException('user is not found');
-        } else if (!user.refresh_token_hash){
-            throw new UnauthorizedException('user is not authorized');
+        try {
+            const user = await this.prisma.users.findUnique({ where: { id } });
+            if (!user || user.del){
+                throw new BadRequestException('user is not found');
+            } else if (!user.refresh_token_hash){
+                throw new UnauthorizedException('user is not authorized');
+            }
+            return user;
+        } catch (error) {
+            throw error;
         }
-        return user;
     }
 
     async updateUser(id: number, user: UpdateUserDTO){ 
-        const findUser = await this.getUserById(id);
-        if (!findUser || findUser.del ){
-            throw new BadRequestException('user is not found');
-        } else if (!findUser.refresh_token_hash){
-            throw new UnauthorizedException('user is not authorized');
-        }
+        try {
+            this.logger.log('Update user');
+            await this.getUserById(id);
+    
+            return await this.prisma.users.update({ 
+                where: { id },
+                data: user,
+            });
+        } catch (error) {
+            this.logger.error(error.message);
+            if (
+                error.status === HttpStatus.BAD_REQUEST || 
+                error.status === HttpStatus.UNAUTHORIZED
+            ){
+                throw error;
+            }
 
-        return await this.prisma.users.update({ 
-            where: { id },
-            data: user,
-        });
+            throw new InternalServerErrorException('server error');
+        }
     }
 
     async signIn(user: SessionDTO){
-        const findUser = await this.getUserByEmail(user.email);
-        if (!findUser || findUser.del ){
-            throw new BadRequestException('user is not found');
-        } 
-        
-        return await this.prisma.users.update({ 
-            where: { id: findUser.id },
-            data: user,
-        });
+        try {
+            const findUser = await this.getUserByEmail(user.email);
+            if (!findUser || findUser.del ){
+                throw new BadRequestException('user is not found');
+            } 
+            
+            return await this.prisma.users.update({ 
+                where: { id: findUser.id },
+                data: user,
+            });
+        } catch (error){
+            throw error;
+        }
     }
 
     async logOut(user: SessionDTO){
-        const findUser = await this.getUserById(user.id);
-        if (!findUser || findUser.del ){
-            throw new BadRequestException('user is not found');
-        } 
-        
-        return await this.prisma.users.update({ 
-            where: { id: user.id},
-            data: user,
-        });
+        try {
+
+            await this.getUserById(user.id);
+            
+            return await this.prisma.users.update({ 
+                where: { id: user.id},
+                data: user,
+            });
+        } catch(error) {
+            throw error;
+        }
     }
 
     async deleteUser(id: number){
-        const findUser = await this.getUserById(id);
-        if (!findUser || findUser.del){
-            throw new BadRequestException('user is not found');
+        try {
+            this.logger.log('Delete user');
+            await this.getUserById(id);
+    
+            await this.prisma.users.update({
+                where: {id},
+                data: {del: true, refresh_token_hash: null},
+            });
+        } catch (error) {
+            this.logger.error(error.message);
+            if (
+                error.status === HttpStatus.BAD_REQUEST || 
+                error.status === HttpStatus.UNAUTHORIZED
+            ){
+                throw error;
+            }
+
+            throw new InternalServerErrorException('server error');
         }
-        await this.prisma.users.update({
-            where: {id},
-            data: {del: true, refresh_token_hash: null},
-        });
     }
 
     async recoverUser(user: RecoverUserDTO){
-        
-        const findUser = await this.getUserByEmail(user.email);
-        if (!findUser){
-            throw new BadRequestException('user is not found');
+        try {
+            this.logger.log('Recover user');
+            const findUser = await this.getUserByEmail(user.email);
+            if (!findUser){
+                throw new BadRequestException('user is not found');
+            }
+            
+            await this.prisma.users.update({
+                where: { id: findUser.id },
+                data: {del: false, refresh_token_hash: null},
+            });
+        } catch(error) {
+            this.logger.error(error.message);
+            if (error.status === HttpStatus.BAD_REQUEST){
+                throw error;
+            }
+
+            throw new InternalServerErrorException('server error');
         }
-        
-        await this.prisma.users.update({
-            where: { id: findUser.id },
-            data: {del: false, refresh_token_hash: null},
-        });
     }
 }

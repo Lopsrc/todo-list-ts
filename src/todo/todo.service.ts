@@ -1,4 +1,4 @@
-import { BadRequestException, HttpStatus, ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, ForbiddenException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateTodoDTO } from './dto/updateTodo.dto';
 import { CreateTodoDTO } from './dto/createTodo.dto';
@@ -7,20 +7,25 @@ import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class TodoService {
-
+    logger: Logger;
     constructor(
         private prisma: PrismaService,
         private userService: UsersService,
-    ){}
+    ){
+        this.logger = new Logger(TodoService.name);
+    }
 
     async createTodo(user_id: number, todo: CreateTodoDTO){
         try {
+            this.logger.log('Create todo');
             // find user from DB. if !refresh_hash || del = true || !user || role != ADMIN  thrown exception.
             await this.userService.getUserById(user_id);
-            console.log("cteate");
+            this.logger.debug(`Validation the user by user_id = ${user_id}` );
             // find a record from DB, where position = the biggest value.
             let position = await this.getMaxPosition(user_id) + 1;
+            this.logger.debug(`Calculate a position. Position = ${position}` );
             // create a new record in DB, with position = the biggest value + 1.
+            this.logger.log('Creating todo...');
             return await this.prisma.projects.create({data: {
                 name: todo.name,
                 description: todo.description,
@@ -30,8 +35,14 @@ export class TodoService {
                 user_id: user_id,
             }})
         } catch (error) {
+            this.logger.error(error.message);
             if( error.code === '23505'){
                 throw new BadRequestException('todo is already exist');
+            } else if (
+                error.status === HttpStatus.BAD_REQUEST || 
+                error.status === HttpStatus.UNAUTHORIZED
+            ){
+                throw error;
             }
             throw new InternalServerErrorException('server error');
         }
@@ -39,39 +50,41 @@ export class TodoService {
 
     async getAllTodos(user_id: number){
         try {
+            this.logger.log(`Get all todos. Admin with user_id: ${user_id}`);
             // find user from DB. if !refresh_hash || del = true || !user || role != ADMIN  thrown exception.
-        const user = await this.userService.getUserById(user_id);
-        if (user.role !== 'ADMIN'){
-            throw new ForbiddenException('access denied');
-        }
-        // get all todo, users left join projects (projects left join progress) sorting by user_id
-        const todos = await this.prisma.projects.findMany({
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                created_at: true,
-                position: true,
-                progress: true,
-                user: {
-                    select: {
-                        name: true,
-                    }
-                },
-            },
-            where: {
-                user_id: user_id,
-            },
-            orderBy: {
-                position: 'asc',
+            const user = await this.userService.getUserById(user_id);
+            if (user.role !== 'ADMIN'){
+                throw new ForbiddenException('access denied');
             }
-        });
-        if (!todos) {
-            throw new BadRequestException('todos are not found');
-        }
-
-        return todos;
+            this.logger.debug('getting todos...');            
+            // get all todo, users left join projects (projects left join progress) sorting by user_id
+            const todos = await this.prisma.projects.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    created_at: true,
+                    position: true,
+                    progress: true,
+                    user: {
+                        select: {
+                            name: true,
+                        }
+                    },
+                },
+                where: {
+                    user_id: user_id,
+                },
+                orderBy: {
+                    position: 'asc',
+                }
+            });
+            if (!todos) {
+                throw new BadRequestException('todos are not found');
+            }
+            return todos;
         } catch (error) {
+            this.logger.error('Get all todos: ', error.message);
             if (
                 error.status === HttpStatus.BAD_REQUEST || 
                 error.status === HttpStatus.UNAUTHORIZED
@@ -85,9 +98,11 @@ export class TodoService {
 
     async getTodos(user_id: number){
         try {
+            this.logger.log('Get all todos for user.');
             // find user from DB. if !refresh_hash || del = true || !user  thrown exception.
             await this.userService.getUserById(user_id);
             // get all todo, projects left join progress sorting by position
+            this.logger.debug('getting all todos...');
             const todos = await this.prisma.projects.findMany({
                 select: {
                     id: true,
@@ -110,6 +125,7 @@ export class TodoService {
 
         return todos;
         } catch (error) {
+            this.logger.error(error.message);
             if (
                 error.status === HttpStatus.BAD_REQUEST || 
                 error.status === HttpStatus.UNAUTHORIZED
@@ -118,16 +134,16 @@ export class TodoService {
             }
             throw new InternalServerErrorException('server error');
         }
-        
     }
 
-    
     async updateTodo(user_id: number, todo: UpdateTodoDTO){
         try {
+            this.logger.log('Update todo by user_id and id');
             // find user from DB. if !refresh_hash || del = true || !user  thrown exception.
             await this.userService.getUserById(user_id);
             // update record from db.
-            await this.prisma.projects.update({
+            this.logger.debug('updating todo...');
+            return await this.prisma.projects.update({
                 where: { 
                     id: todo.id,
                     user_id: user_id,
@@ -135,6 +151,7 @@ export class TodoService {
                 data: todo,
             })
         } catch (error) {
+            this.logger.error(error.message);
             if (
                 error.status === HttpStatus.BAD_REQUEST || 
                 error.status === HttpStatus.UNAUTHORIZED
@@ -149,13 +166,14 @@ export class TodoService {
 
     async updatePositionOfTodo(user_id: number, todo: ChangeTodoPositionDTO){
         try{
+            this.logger.log('Update a position of todo');
             // find user from DB. if !refresh_hash || del = true || !user  thrown exception.
             await this.userService.getUserById(user_id);
             // find record from progress where position is bigger.        
             const min = (todo.oldPosition > todo.newPosition) ? todo.newPosition : todo.oldPosition;
             const max = (todo.oldPosition < todo.newPosition) ? todo.newPosition : todo.oldPosition;
             
-            let todos = await this.getTodoByPosition(user_id, min, max);
+            let todos = await this.getTodosByPosition(user_id, min, max);
             if (todo.oldPosition > todo.newPosition){
                 for (let i = 0; i < todos.length - 1; i++){
                     [todos[i].position, todos[i+1].position] = [todos[i+1].position, todos[i].position];
@@ -165,9 +183,11 @@ export class TodoService {
                     [todos[i].position, todos[i-1].position] = [todos[i-1].position, todos[i].position];
                 }
             }
-
+            this.logger.debug(`Got positons, number of todos= ${todos.length}`);
+            
             await this.prisma.$transaction(async (tx) => {
                 for (let i = 0; i < todos.length; i++){
+                    this.logger.debug(`Changing positions: ${todos[i].name, todos[i].position}`);
                     await tx.projects.update({
                         where: { id: todos[i].id },
                         data: {
@@ -179,6 +199,7 @@ export class TodoService {
 
             return todos;
         }catch (error){
+            this.logger.error(error.message);
             if (
                 error.status === HttpStatus.BAD_REQUEST || 
                 error.status === HttpStatus.UNAUTHORIZED
@@ -189,9 +210,9 @@ export class TodoService {
         }
     }
 
-
     async deleteTodo(user_id: number, id: number){
         try{
+            this.logger.log('Delete the todo');
             // find user from DB. if !refresh_hash || del = true || !user  thrown exception.
             await this.userService.getUserById(user_id);
             // delete record.
@@ -201,16 +222,15 @@ export class TodoService {
             if (!todo) {
                 throw new BadRequestException('todo is not exist');
             }
-            if (todo.user_id !== user_id) {
-                throw new ForbiddenException('access denied');
-            }
-
+            this.logger.debug(`Got todo with id and position: ${todo.id} and ${todo.position}`);
             const lastPosition = await this.getMaxPosition(user_id);
             if (!lastPosition) {
                 throw new BadRequestException('todo is not deleted');
-            }
+            }   
+            this.logger.debug(`Got todo(last) with id and position: ${todo.id} and ${todo.position}`);
 
-            const todos = await this.getTodoByPosition(user_id, todo.position+1, lastPosition);
+            const todos = await this.getTodosByPosition(user_id, todo.position+1, lastPosition);
+            this.logger.debug(`Got todos: number of todos = ${todos.length}`);
 
 
             await this.prisma.$transaction(async (tx) => {
@@ -234,6 +254,7 @@ export class TodoService {
                 }
             });
         } catch (error){
+            this.logger.error(error.message);
             if (
                 error.status === HttpStatus.BAD_REQUEST  || 
                 error.status === HttpStatus.UNAUTHORIZED ||
@@ -245,9 +266,9 @@ export class TodoService {
         }   
     }
 
-    private async getTodoByPosition(user_id: number, minPosition: number, maxPosition: number){
+    private async getTodosByPosition(user_id: number, minPosition: number, maxPosition: number){
         try {
-
+            this.logger.debug('Get todos by position.')
             await this.userService.getUserById(user_id);
     
             let todo = await this.prisma.projects.findMany({
@@ -272,6 +293,7 @@ export class TodoService {
 
     private async getMaxPosition(user_id){
         try{
+            this.logger.debug('Get max position');
             const todo = await this.prisma.projects.findFirst({
                 
                 where: {

@@ -7,13 +7,18 @@ import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { Roles } from 'src/roles/role.decorator';
 import { Role } from '../roles/role.enum';
 import { RolesGuard } from 'src/roles/role.guard';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { User } from './model/user.model';
 
+@ApiTags('Users')
 @Controller('api/users')
 export class UsersController {
     constructor(
         private usersService: UsersService
     ) {}
 
+    @ApiOperation({summary: 'get all users'})
+    @ApiResponse({status: HttpStatus.OK, type: [User]})
     @UseGuards(AccessTokenGuard, RolesGuard)
     @Roles(Role.ADMIN)
     @Get()
@@ -23,6 +28,8 @@ export class UsersController {
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 
+    @ApiOperation({summary: 'get a user'})
+    @ApiResponse({status: HttpStatus.OK, type: User})
     @UseGuards(AccessTokenGuard)
     @UsePipes(ValidationPipe)
     @Get('user')
@@ -32,6 +39,8 @@ export class UsersController {
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 
+    @ApiOperation({summary: 'update a user'})
+    @ApiResponse({status: HttpStatus.OK, type: User})
     @UseGuards(AccessTokenGuard)
     @UsePipes(ValidationPipe)
     @Put()
@@ -41,20 +50,24 @@ export class UsersController {
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 
+    @ApiOperation({summary: 'delete (soft) a user'})
+    @ApiResponse({status: HttpStatus.OK, type: 'true'})
     @UseGuards(AccessTokenGuard)
     @UsePipes(ValidationPipe)
     @Delete()
     delete(@Req() req: Request, @Res() res: Response){
         this.usersService.deleteUser(req.user['sub'])
-        .then(result => res.status(HttpStatus.OK).send({status: HttpStatus.OK, data: result}))
+        .then(result => res.status(HttpStatus.OK).send({status: HttpStatus.OK, isDel: true}))
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
     
+    @ApiOperation({summary: 'delete (soft) a user'})
+    @ApiResponse({status: HttpStatus.OK, type: 'true'})
     @UsePipes(ValidationPipe)
-    @Put('rec')
+    @Put('recovery')
     recover(@Body() user: RecoverUserDTO, @Res() res: Response){
         this.usersService.recoverUser(user)
-        .then(result => res.status(HttpStatus.CREATED).send({status: HttpStatus.CREATED, data: result}))
+        .then(() => res.status(HttpStatus.CREATED).send({status: HttpStatus.CREATED, isRec: true}))
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 }
