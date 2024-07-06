@@ -10,7 +10,7 @@ export class CreateUserDTO{
     @ApiProperty({example: 'Ivan', description: 'name of the user'})
     @IsOptional()
     @IsString({message: "Incorrect name"})
-    readonly name: string;
+    readonly name?: string;
     
     @ApiProperty({example: 'example_password', description: 'password of the user'})
     @IsNotEmpty()

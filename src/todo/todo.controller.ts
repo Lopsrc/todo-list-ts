@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, HttpStatus, Param, Post, Put, Req, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { TodoService } from './todo.service';
 import { Request, Response } from 'express';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
-import { Role } from 'src/roles/role.enum';
-import { RolesGuard } from 'src/roles/role.guard';
-import { Roles } from 'src/roles/role.decorator';
+import { AccessTokenGuard } from '../common/guards/accessToken.guard';
+import { Role } from '../roles/role.enum';
+import { RolesGuard } from '../roles/role.guard';
+import { Roles } from '../roles/role.decorator';
 import { CreateTodoDTO } from './dto/createTodo.dto';
 import { UpdateTodoDTO } from './dto/updateTodo.dto';
 import { DeleteTodoDTO } from './dto/deleteTodo.dto';
@@ -88,7 +88,7 @@ export class TodoController {
     @Delete()
     deleteTodo(@Req() req: Request, @Body() todo: DeleteTodoDTO, @Res() res: Response){
         this.todoService.deleteTodo(req.user['sub'], todo.id)
-        .then(() => res.status(HttpStatus.OK).send({statusCode: HttpStatus.OK, data: true}))
+        .then((result) => res.status(HttpStatus.OK).send({statusCode: HttpStatus.OK, data: result}))
         .catch(error => res.status(error.status).send({statusCode: error.status, error: error.message}));
     }
 }

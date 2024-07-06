@@ -1,9 +1,9 @@
 import { BadRequestException, HttpStatus, ForbiddenException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { UpdateTodoDTO } from './dto/updateTodo.dto';
 import { CreateTodoDTO } from './dto/createTodo.dto';
 import { ChangeTodoPositionDTO } from './dto/changePosition.dto';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class TodoService {
@@ -253,6 +253,7 @@ export class TodoService {
                     })
                 }
             });
+            return true;
         } catch (error){
             this.logger.error(error.message);
             if (

@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, UnauthorizedException, ForbiddenException, InternalServerErrorException, HttpStatus, Logger } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { User } from './model/user.model';
 import { RecoverUserDTO } from './dto/recoverUser.dto';
 import { UpdateUserDTO } from './dto/updateUser.dto';
-import { SessionDTO } from 'src/auth/dto/session.dto';
+import { SessionDTO } from '../auth/dto/session.dto';
 
 @Injectable()
 export class UsersService {
@@ -29,11 +29,11 @@ export class UsersService {
     async getAllUsers(id: number){
         try {
             this.logger.log('Get all users');
-            const findUser = await this.getUserById(id)
-            if (findUser.role !== 'ADMIN'){
-                throw new ForbiddenException('access is denied');
-            }
-            this.logger.debug(`User with email: ${findUser.email} and role: ${findUser.role}`);
+            // const findUser = await this.getUserById(id)
+            // if (findUser.role !== 'ADMIN'){
+            //     throw new ForbiddenException('access is denied');
+            // }
+            // this.logger.debug(`User with email: ${findUser.email} and role: ${findUser.role}`);
             const users = await this.prisma.users.findMany();
             if (users.length === 0){
                 throw new BadRequestException('users are not found');

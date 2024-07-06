@@ -3,10 +3,10 @@ import { UsersService } from './users.service';
 import { UpdateUserDTO } from './dto/updateUser.dto';
 import { RecoverUserDTO } from './dto/recoverUser.dto';
 import { Request, Response } from 'express';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
-import { Roles } from 'src/roles/role.decorator';
+import { AccessTokenGuard } from '../common/guards/accessToken.guard';
+import { Roles } from '../roles/role.decorator';
 import { Role } from '../roles/role.enum';
-import { RolesGuard } from 'src/roles/role.guard';
+import { RolesGuard } from '../roles/role.guard';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from './model/user.model';
 

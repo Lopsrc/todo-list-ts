@@ -1,7 +1,7 @@
 import { BadRequestException, HttpStatus, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { CreateUserDTO } from 'src/users/dto/createUser.dto';
-import { UsersService } from 'src/users/users.service';
+import { CreateUserDTO } from '../users/dto/createUser.dto';
+import { UsersService } from '../users/users.service';
 import { AuthDto } from './dto/auth.dto';
 import * as argon2 from 'argon2';
 

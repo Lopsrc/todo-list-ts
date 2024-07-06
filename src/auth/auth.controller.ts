@@ -1,10 +1,10 @@
 import { Body, Controller, HttpStatus, Post, Req, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { Response, Request } from 'express';
-import { CreateUserDTO } from 'src/users/dto/createUser.dto';
+import { CreateUserDTO } from '../users/dto/createUser.dto';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto/auth.dto';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
-import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { AccessTokenGuard } from '../common/guards/accessToken.guard';
+import { RefreshTokenGuard } from '../common/guards/refreshToken.guard';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Tokens } from './models/tokens.models'
 
