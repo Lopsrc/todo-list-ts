@@ -29,11 +29,11 @@ export class UsersService {
     async getAllUsers(id: number){
         try {
             this.logger.log('Get all users');
-            // const findUser = await this.getUserById(id)
-            // if (findUser.role !== 'ADMIN'){
-            //     throw new ForbiddenException('access is denied');
-            // }
-            // this.logger.debug(`User with email: ${findUser.email} and role: ${findUser.role}`);
+            const findUser = await this.getUserById(id)
+            if (findUser.role !== 'ADMIN'){
+                throw new ForbiddenException('access is denied');
+            }
+            this.logger.debug(`User with email: ${findUser.email} and role: ${findUser.role}`);
             const users = await this.prisma.users.findMany();
             if (users.length === 0){
                 throw new BadRequestException('users are not found');
@@ -97,37 +97,7 @@ export class UsersService {
         }
     }
 
-    async signIn(user: SessionDTO){
-        try {
-            const findUser = await this.getUserByEmail(user.email);
-            if (!findUser || findUser.del ){
-                throw new BadRequestException('user is not found');
-            } 
-            
-            return await this.prisma.users.update({ 
-                where: { id: findUser.id },
-                data: user,
-            });
-        } catch (error){
-            throw error;
-        }
-    }
-
-    async logOut(user: SessionDTO){
-        try {
-
-            await this.getUserById(user.id);
-            
-            return await this.prisma.users.update({ 
-                where: { id: user.id},
-                data: user,
-            });
-        } catch(error) {
-            throw error;
-        }
-    }
-
-    async deleteUser(id: number){
+    async deleteUser(id: number): Promise<Boolean>{
         try {
             this.logger.log('Delete user');
             await this.getUserById(id);
@@ -136,6 +106,7 @@ export class UsersService {
                 where: {id},
                 data: {del: true, refresh_token_hash: null},
             });
+            return true;
         } catch (error) {
             this.logger.error(error.message);
             if (
@@ -149,7 +120,7 @@ export class UsersService {
         }
     }
 
-    async recoverUser(user: RecoverUserDTO){
+    async recoverUser(user: RecoverUserDTO): Promise<Boolean>{
         try {
             this.logger.log('Recover user');
             const findUser = await this.getUserByEmail(user.email);
@@ -161,6 +132,7 @@ export class UsersService {
                 where: { id: findUser.id },
                 data: {del: false, refresh_token_hash: null},
             });
+            return true;
         } catch(error) {
             this.logger.error(error.message);
             if (error.status === HttpStatus.BAD_REQUEST){

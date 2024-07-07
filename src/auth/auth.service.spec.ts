@@ -9,6 +9,23 @@ const tokens = {
     refreshToken: 'refresh_token',
 }
 
+const user = {
+    id: 2,
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    refresh_token_hash: 'some_token',
+    password: 'secret',
+    role: 'ADMIN',
+}
+
+const db = {
+	users: {
+        findUnique: jest.fn().mockResolvedValue({ id: 1 , refresh_token_hash: 'some_token', role: 'ADMIN'}),
+        findFirst: jest.fn().mockResolvedValue({ id: 1 , refresh_token_hash: 'some_token', role: 'ADMIN'}),
+        create: jest.fn().mockReturnValue(user),
+    },
+};
+
 describe('AuthService', () => {
     let service: AuthService;
 
@@ -18,13 +35,18 @@ describe('AuthService', () => {
                 AuthService,
                 UsersService,
                 PrismaService,
-                JwtService,
+                
+                // JwtService,
                 {
                     provide: JwtService,
                     useValue: {
                         sign: jest.fn().mockReturnValue(tokens.accessToken),
                     },
-                }
+                },
+                {
+					provide: PrismaService,
+					useValue: db,
+				},
             ],
 
         }).compile();
@@ -37,12 +59,13 @@ describe('AuthService', () => {
     });
     describe('signUp', () => {
         it('should create a new user', () => {
-            // const tokens = service.signUp({
-            //     email: 'test@test.com',
-            //     password: 'password',
-            //     role: 'USER',
-            // })
-            // expect(tokens).toBeTruthy();
+            const tokens = service.signUp({
+                email: 'test@test.com',
+                password: 'password',
+                role: 'USER',
+            })
+            expect(tokens).toBeTruthy();
         });
     });
+    // TODO: implement me.
 });

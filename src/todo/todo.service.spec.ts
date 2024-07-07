@@ -46,7 +46,6 @@ const db = {
 
 describe('TodoService', () => {
 	let service: TodoService;
-    let prisma: PrismaService;
 
 	beforeEach(async () => {
 		const module: TestingModule = await Test.createTestingModule({
@@ -61,7 +60,6 @@ describe('TodoService', () => {
 		}).compile();
 	
 		service = module.get<TodoService>(TodoService);
-		prisma = module.get<PrismaService>(PrismaService);
 	
 	});
 

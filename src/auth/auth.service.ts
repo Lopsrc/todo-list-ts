@@ -19,7 +19,6 @@ export class AuthService {
         try {
             this.logger.log('Sign up.');
             const userExist = await this.usersService.getUserByEmail(user.email)
-            // console.log(user.email)
             if (userExist){
                 throw new BadRequestException('User already exists');
             }
@@ -37,8 +36,7 @@ export class AuthService {
             const tokens = await this.generateTokens(newUser.id, newUser.email, user.role);
             const refreshHash = await argon2.hash(tokens.refreshToken);
             this.logger.debug(`Sign up with email: ${newUser.email}, role: ${newUser.role}`);
-            await this.usersService.signIn({
-                email: newUser.email,
+            await this.usersService.updateUser(userExist.id, {
                 refresh_token_hash: refreshHash
             });
             return tokens;
@@ -74,9 +72,8 @@ export class AuthService {
             // Store refresh token.
             const hashedRefreshToken = await argon2.hash(tokens.refreshToken);
 
-            await this.usersService.signIn(
-                {email: user.email,
-                refresh_token_hash: hashedRefreshToken}
+            await this.usersService.updateUser( user.id,
+                { refresh_token_hash: hashedRefreshToken }
             );
             // Return pair of tokens.
             return tokens;
@@ -97,7 +94,7 @@ export class AuthService {
             this.logger.log('Log out');
             await this.usersService.getUserById(id);
             
-            await this.usersService.logOut({id,refresh_token_hash: null });
+            await this.usersService.updateUser(id,{refresh_token_hash: null });
         } catch (error) {
             this.logger.error(error.message);
             if (
@@ -124,8 +121,7 @@ export class AuthService {
             const tokens = await this.generateTokens(user.id, user.email, user.role);
             // Store refresh token.
             const hashedRefreshToken = await argon2.hash(tokens.refreshToken);
-            await this.usersService.signIn({
-                email: user.email,
+            await this.usersService.updateUser(user.id, {
                 refresh_token_hash: hashedRefreshToken
             });
             // Return pair of tokens.
