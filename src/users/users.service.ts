@@ -19,7 +19,7 @@ export class UsersService {
             return await this.prisma.users.create({data:user})
         } catch (error) {
             if( error.code === '23505'){
-                throw new BadRequestException('todo is already exist');
+                throw new BadRequestException('user is already exist');
             }
             
             throw error;
@@ -83,6 +83,28 @@ export class UsersService {
             return await this.prisma.users.update({ 
                 where: { id },
                 data: user,
+            });
+        } catch (error) {
+            this.logger.error(error.message);
+            if (
+                error.status === HttpStatus.BAD_REQUEST || 
+                error.status === HttpStatus.UNAUTHORIZED
+            ){
+                throw error;
+            }
+
+            throw new InternalServerErrorException('server error');
+        }
+    }
+
+    async updateTokenOfUser(id: number, token: string){ 
+        try {
+            this.logger.log('Update token');    
+            return await this.prisma.users.update({ 
+                where: { id },
+                data: {
+                    refresh_token_hash: token
+                },
             });
         } catch (error) {
             this.logger.error(error.message);

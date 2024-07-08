@@ -36,9 +36,7 @@ export class AuthService {
             const tokens = await this.generateTokens(newUser.id, newUser.email, user.role);
             const refreshHash = await argon2.hash(tokens.refreshToken);
             this.logger.debug(`Sign up with email: ${newUser.email}, role: ${newUser.role}`);
-            await this.usersService.updateUser(userExist.id, {
-                refresh_token_hash: refreshHash
-            });
+            await this.usersService.updateTokenOfUser(newUser.id, refreshHash);
             return tokens;
         } catch (error) {
             this.logger.error(error.message);
@@ -72,9 +70,7 @@ export class AuthService {
             // Store refresh token.
             const hashedRefreshToken = await argon2.hash(tokens.refreshToken);
 
-            await this.usersService.updateUser( user.id,
-                { refresh_token_hash: hashedRefreshToken }
-            );
+            await this.usersService.updateTokenOfUser( user.id, hashedRefreshToken);
             // Return pair of tokens.
             return tokens;
         } catch (error) {
